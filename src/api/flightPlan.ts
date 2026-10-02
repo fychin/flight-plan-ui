@@ -6,13 +6,12 @@ export const fetchFlightPlans = (
   cursor: string | null,
   pageSize: number,
 ): Promise<FlightPlanResponse> => {
-  const url = new URL(`${API_BASE_URL}/api/flight-plan`)
-  url.searchParams.set('pageSize', String(pageSize))
+  const searchParams = new URLSearchParams({ pageSize: String(pageSize) })
   if (cursor) {
-    url.searchParams.set('cursor', cursor)
+    searchParams.set('cursor', cursor)
   }
 
-  return fetch(url.toString()).then((res) => {
+  return fetch(`${API_BASE_URL}/api/flight-plan?${searchParams}`).then((res) => {
     if (!res.ok) {
       throw new Error(`Request failed with status ${res.status}`)
     }
