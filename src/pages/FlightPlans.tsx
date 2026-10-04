@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
-  FlightPlan,
+  FlightPlanListItem,
   FlightPlanResponse,
   Pagination,
 } from '../types/flightPlan'
@@ -14,7 +14,7 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20, 50]
 const DEFAULT_PAGE_SIZE = 10
 
 function FlightPlans() {
-  const [flightPlans, setFlightPlans] = useState<FlightPlan[]>([])
+  const [flightPlans, setFlightPlans] = useState<FlightPlanListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [prevCursor, setPrevCursor] = useState<string | null>(null)
@@ -95,7 +95,7 @@ function FlightPlans() {
     setPageSize(value)
   }
 
-  const handleRowClick = (plan: FlightPlan) => {
+  const handleRowClick = (plan: FlightPlanListItem) => {
     navigate(`/flight-plan/${plan.id}`)
   }
 
