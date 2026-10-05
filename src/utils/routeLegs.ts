@@ -66,8 +66,7 @@ export const buildRouteLegs = (plan: FlightPlanDetail): RouteLeg[] => {
   }
   segments.forEach((segment, index) => {
     const context = segment.context
-    const waypoints = context?.type === 'airway'
-      ? [...context.waypoints].sort((a, b) => a.indexInAirway - b.indexInAirway) : []
+    const waypoints = context?.type === 'airway' ? context.waypoints : []
     addLeg(`segment-${index}`, segment.from, segment.to,
       context?.type === 'airway' ? context.airway : 'DCT',
       [segment.from, ...waypoints, segment.to])

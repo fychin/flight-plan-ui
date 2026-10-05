@@ -85,7 +85,13 @@ describe('FlightPlanDetails', () => {
     expect(within(summary).getByRole('region', { name: 'Legend' })).toBeTruthy()
     expect(within(summary).getByRole('list', { name: 'Map legend' })).toBeTruthy()
     expect(within(summary).getByRole('region', { name: 'Routes' })).toBeTruthy()
-    expect(screen.getByText(/DOMIL, FIR11/)).toBeTruthy()
+    expect(mapViewMock.lastProps?.markers.filter((marker) => marker.flagged).map((marker) => marker.label)).toEqual(['DOMIL', 'FIR11'])
+    expect(mapViewMock.lastProps?.lines?.map((line) => line.id)).toEqual([
+      'route-departure', 'route-arrival', 'airway-G579-0-0',
+    ])
+    expect(mapViewMock.lastProps?.lines?.[2]).toMatchObject({
+      label: 'G579', style: { width: 7, arrows: true },
+    })
     expect(within(summary).getByText('DOLTA → REPOV')).toBeTruthy()
     expect(within(summary).getAllByText('G579')).toHaveLength(2)
   })

@@ -1,17 +1,4 @@
 .flight-route-map { position: relative; height: 100%; min-height: 0; }
-.flight-route-map__notes {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 2;
-  display: grid;
-  gap: 6px;
-  max-width: min(580px, calc(100% - 80px));
-  max-height: 30%;
-  overflow: auto;
-}
-.flight-route-map__note { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; background: rgba(255, 255, 255, 0.96); font-size: 12px; color: var(--ui-charcoal); }
-.flight-route-map__notes:focus-visible { outline: 3px solid var(--ui-blue); outline-offset: 2px; }
 .flight-route-map__empty {
   margin: 0;
   padding: 24px;
@@ -29,6 +16,5 @@
 @media (max-width: 1024px) {
   .flight-route-map { height: auto; }
   .flight-route-map .map-view { height: 60svh; min-height: 360px; }
-  .flight-route-map__notes { position: static; max-width: none; max-height: none; margin-top: 8px; }
   .flight-route-map__empty { min-height: 360px; }
 }

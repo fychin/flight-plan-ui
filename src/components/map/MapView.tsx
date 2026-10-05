@@ -1,28 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
-import type { FeatureCollection, LineString } from 'geojson'
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import type { FeatureCollection, LineString, Point } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './MapView.css'
 import { getMapStyle } from './mapStyle'
 import type { MapLine, MapMarker, MapViewProps } from './types'
 
-type LineFeatureCollection = FeatureCollection<LineString, { id: string }>
+type LineFeatureCollection = FeatureCollection<LineString, { id: string; label?: string }>
 
 const sourceIdForLine = (id: string) => `map-line-source-${encodeURIComponent(id)}`
 const layerIdForLine = (id: string) => `map-line-layer-${encodeURIComponent(id)}`
+const labelSourceIdForLine = (id: string) => `${sourceIdForLine(id)}-labels`
 
 const toLineFeatureCollection = (line: MapLine): LineFeatureCollection => ({
   type: 'FeatureCollection',
   features: [
     {
       type: 'Feature',
-      properties: { id: line.id },
+      properties: { id: line.id, ...(line.label ? { label: line.label } : {}) },
       geometry: {
         type: 'LineString',
         coordinates: line.coordinates.map(({ latitude, longitude }) => [longitude, latitude]),
       },
     },
   ],
+})
+
+const toSegmentLabelFeatureCollection = (line: MapLine): FeatureCollection<Point, { label: string }> => ({
+  type: 'FeatureCollection',
+  features: line.coordinates.slice(1).flatMap((end, index) => {
+    const start = line.coordinates[index]
+    if (start.latitude === end.latitude && start.longitude === end.longitude) return []
+    const longitudeDelta = ((end.longitude - start.longitude + 540) % 360) - 180
+    const longitude = ((start.longitude + longitudeDelta / 2 + 540) % 360) - 180
+    return [{
+      type: 'Feature',
+      properties: { label: line.label ?? '' },
+      geometry: {
+        type: 'Point',
+        coordinates: [longitude, (start.latitude + end.latitude) / 2],
+      },
+    }]
+  }),
 })
 
 const createPopupContent = (marker: MapMarker) => {
@@ -113,6 +133,8 @@ export const MapView = ({ markers, lines = EMPTY_LINES, focus, ariaLabel }: MapV
   useEffect(() => {
     if (!containerRef.current) return
 
+    // Vite relocates MapLibre's module, so its relative worker URL is unreliable.
+    maplibregl.setWorkerUrl(mapWorkerUrl)
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: getMapStyle(),
@@ -173,9 +195,11 @@ export const MapView = ({ markers, lines = EMPTY_LINES, focus, ariaLabel }: MapV
       if (activeLineIds.has(staleId)) continue
       const layerId = layerIdForLine(staleId)
       const sourceId = sourceIdForLine(staleId)
-      for (const id of [`${layerId}-arrows`, layerId, `${layerId}-casing`]) {
+      for (const id of [`${layerId}-label`, `${layerId}-arrows`, layerId, `${layerId}-casing`]) {
         if (map.getLayer(id)) map.removeLayer(id)
       }
+      const labelSourceId = labelSourceIdForLine(staleId)
+      if (map.getSource(labelSourceId)) map.removeSource(labelSourceId)
       if (map.getSource(sourceId)) map.removeSource(sourceId)
     }
 
@@ -236,6 +260,45 @@ export const MapView = ({ markers, lines = EMPTY_LINES, focus, ariaLabel }: MapV
           } })
         }
       } else if (map.getLayer(arrowsId)) map.removeLayer(arrowsId)
+
+      const labelId = `${layerId}-label`
+      const labelSourceId = labelSourceIdForLine(line.id)
+      if (line.label) {
+        const labelData = toSegmentLabelFeatureCollection(line)
+        const labelSource = map.getSource(labelSourceId)
+        if (labelSource && 'setData' in labelSource && typeof labelSource.setData === 'function') {
+          labelSource.setData(labelData)
+        } else if (!labelSource) {
+          map.addSource(labelSourceId, { type: 'geojson', data: labelData })
+        }
+        const labelColor = line.style?.color ?? '#00539c'
+        if (map.getLayer(labelId)) {
+          map.setPaintProperty(labelId, 'text-color', labelColor)
+        } else {
+          map.addLayer({
+            id: labelId,
+            type: 'symbol',
+            source: labelSourceId,
+            layout: {
+              'symbol-placement': 'point',
+              'text-field': ['get', 'label'],
+              'text-font': ['Open Sans Bold'],
+              'text-size': 18,
+              'text-offset': [0, -0.8],
+              'text-allow-overlap': true,
+              'text-ignore-placement': true,
+            },
+            paint: {
+              'text-color': labelColor,
+              'text-halo-color': '#ffffff',
+              'text-halo-width': 2,
+            },
+          })
+        }
+      } else {
+        if (map.getLayer(labelId)) map.removeLayer(labelId)
+        if (map.getSource(labelSourceId)) map.removeSource(labelSourceId)
+      }
     }
     lineIdsRef.current = activeLineIds
   }, [lines, readyMap])

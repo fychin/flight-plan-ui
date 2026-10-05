@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import type { FlightPlanDetail } from '../types/flightPlan'
-import { buildAirwayLines, buildMapPoints, buildRouteLine } from '../utils/routeGeo'
+import { buildMapPoints } from '../utils/routeGeo'
+import { buildRouteMapLines } from '../utils/routeMapLines'
 import type { MarkerShape } from './map/types'
 import { FLIGHT_AIRWAY_LINE_STYLE, FLIGHT_LEG_HIGHLIGHT_STYLE, FLIGHT_ROUTE_LINE_STYLE, resolveFlightMapPointStyle } from './flightRouteMapStyles'
 import './FlightMapLegend.css'
@@ -12,7 +13,7 @@ export type FlightMapLegendProps = {
   hasFocusedLeg: boolean
 }
 
-type LegendEntry = { label: string; color: string; shape?: MarkerShape; dashed?: boolean }
+type LegendEntry = { label: string; color: string; shape?: MarkerShape; width?: number }
 
 export const FlightMapLegend = ({ plan, showAlternates, hasFocusedLeg }: FlightMapLegendProps) => {
   const entries = useMemo(() => {
@@ -23,14 +24,15 @@ export const FlightMapLegend = ({ plan, showAlternates, hasFocusedLeg }: FlightM
       const resolved = resolveFlightMapPointStyle(point)
       categories.set(resolved.legendLabel, { label: resolved.legendLabel, color: resolved.style.color, shape: resolved.style.shape })
     }
-    if (buildRouteLine(points).length >= 2) {
-      categories.set('Filed route', { label: 'Filed route', color: FLIGHT_ROUTE_LINE_STYLE.color })
+    const lines = buildRouteMapLines(plan)
+    if (lines.some((line) => line.airway === undefined)) {
+      categories.set('Filed route', { label: 'Filed route (direct)', color: FLIGHT_ROUTE_LINE_STYLE.color, width: FLIGHT_ROUTE_LINE_STYLE.width })
     }
-    const airways = [...new Set(buildAirwayLines(plan).map((line) => line.airway))]
+    const airways = [...new Set(lines.flatMap((line) => line.airway !== undefined ? [line.airway] : []))]
     if (airways.length) {
-      categories.set('Airway overlay', { label: `Airway overlay: ${airways.join(', ')}`, color: FLIGHT_AIRWAY_LINE_STYLE.color, dashed: true })
+      categories.set('Airway route', { label: `Airway route: ${airways.join(', ')}`, color: FLIGHT_AIRWAY_LINE_STYLE.color, width: FLIGHT_AIRWAY_LINE_STYLE.width })
     }
-    if (hasFocusedLeg) categories.set('Selected leg', { label: 'Selected leg', color: FLIGHT_LEG_HIGHLIGHT_STYLE.color })
+    if (hasFocusedLeg) categories.set('Selected leg', { label: 'Selected leg', color: FLIGHT_LEG_HIGHLIGHT_STYLE.color, width: FLIGHT_LEG_HIGHLIGHT_STYLE.width })
     return [...categories.values()]
   }, [plan, showAlternates, hasFocusedLeg])
 
@@ -40,8 +42,8 @@ export const FlightMapLegend = ({ plan, showAlternates, hasFocusedLeg }: FlightM
       <div className="route-summary__scroll" tabIndex={0} role="group" aria-label="Map legend details">
         {entries.length ? <ul className="flight-map-legend__list" aria-label="Map legend">
           {entries.map((entry) => <li key={entry.label}>
-            <span className={`flight-map-legend__swatch flight-map-legend__swatch--${entry.shape ?? 'line'}${entry.dashed ? ' flight-map-legend__swatch--dashed' : ''}`}
-              style={{ '--swatch-color': entry.color } as CSSProperties} aria-hidden="true" />
+            <span className={`flight-map-legend__swatch flight-map-legend__swatch--${entry.shape ?? 'line'}`}
+              style={{ '--swatch-color': entry.color, '--swatch-width': `${entry.width ?? 4}px` } as CSSProperties} aria-hidden="true" />
             <span>{entry.label}</span>
           </li>)}
         </ul> : <p>No map features available.</p>}
