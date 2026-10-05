@@ -21,10 +21,12 @@ describe('flight route styles', () => {
     expect(resolveFlightMapPointStyle({ ...point, type: null }).style.shape).toBe('square')
     expect(resolveFlightMapPointStyle({ ...point, role: 'enroute-alternate' })).toMatchObject({ legendLabel: 'Enroute alternate', style: { badge: 'ALT', shape: 'diamond' } })
   })
-  it('uses cased route and selected paths with arrows, and a thinner dashed airway detail', () => {
+  it('uses solid cased paths with arrows and a thicker airway route', () => {
     expect(FLIGHT_ROUTE_LINE_STYLE).toMatchObject({ color: '#b90078', casingColor: '#ffffff', arrows: true })
     expect(FLIGHT_LEG_HIGHLIGHT_STYLE).toMatchObject({ color: '#ffc247', casingColor: '#342800', arrows: true })
-    expect(FLIGHT_AIRWAY_LINE_STYLE.width).toBeLessThan(FLIGHT_ROUTE_LINE_STYLE.width)
-    expect(FLIGHT_AIRWAY_LINE_STYLE.dasharray).toEqual([2, 2])
+    expect(FLIGHT_AIRWAY_LINE_STYLE).toMatchObject({ casingColor: '#ffffff', arrows: true })
+    expect(FLIGHT_AIRWAY_LINE_STYLE.width).toBeGreaterThan(FLIGHT_ROUTE_LINE_STYLE.width)
+    expect(FLIGHT_AIRWAY_LINE_STYLE).not.toHaveProperty('dasharray')
+    expect(FLIGHT_LEG_HIGHLIGHT_STYLE.width).toBeGreaterThan(FLIGHT_AIRWAY_LINE_STYLE.width)
   })
 })

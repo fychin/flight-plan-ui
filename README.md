@@ -21,11 +21,15 @@ VITE_API_BASE_URL=http://localhost:3000
 
 The details page lazy-loads MapLibre GL JS and uses OpenStreetMap raster tiles by default, with visible OpenStreetMap attribution. Markers show airports, alternates, route points, and airway waypoints; selecting a marker opens its role, type, and coordinates. A legend and route summary appear below the map. Plans without plottable coordinates show an empty state.
 
+The filed route follows airway fixes instead of drawing a parallel straight connection. Airway portions use a thicker solid teal line; direct portions use a narrower magenta line. Each fix-to-fix segment displays a large airway name or DCT label, and both retain direction arrows. Missing or invalid airway coordinates break the path rather than connecting across the gap.
+
+Airway fixes follow the API's waypoint travel order from the segment's starting fix to its ending fix. Official `indexInAirway` values can increase or decrease; they are not re-sorted ascending, so reverse-travel airways retain the correct path and arrow direction.
+
 To use another tile provider, set the optional **VITE_MAP_STYLE_URL** environment variable to a MapLibre style JSON URL. Keep any provider API key in local, untracked environment files such as [`.env.local`](.env.local), never in source control. Vite embeds client-side configuration in the browser bundle, so this is not suitable for private server credentials; use a provider-approved public token with appropriate restrictions.
 
 The [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/) applies to the default tiles. The public tile server is for light use; production deployments should use their own or a commercial tile provider. Preserve the provider's required attribution.
 
-Route and airway points farther than **OUTLIER_DISTANCE_NM (1500 NM)** from the departure–destination corridor are still plotted but flagged. They are excluded from the general route line and initial viewport fit, while the airway overlay retains them. If every plotted point is flagged, the map fits all points as a fallback. Points with missing or invalid coordinates are reported as not plotted. Summary distances are great-circle estimates along the plotted route, not flown distances.
+Route and airway points farther than **OUTLIER_DISTANCE_NM (1500 NM)** from the departure–destination corridor are still plotted but flagged. They are excluded from route connections and the initial viewport fit; airway portions connect the remaining fixes in sequence. If every plotted point is flagged, the map fits all points as a fallback. Points with missing or invalid coordinates are reported as not plotted. Summary distances are great-circle estimates along the route endpoints, not flown distances.
 
 The API contract follows the backend's OpenAPI specification served at **/openapi.json**; see the [flight plan types](src/types/flightPlan.ts) and [API client](src/api/flightPlan.ts).
 

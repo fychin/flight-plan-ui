@@ -149,8 +149,8 @@ const flagOutliers = (points: MapPoint[]): MapPoint[] => {
 
 /**
  * Flattens a flight plan into ordered, plottable points:
- * departure, route points (with their airway waypoints sorted by
- * `indexInAirway`), destination, then alternates. Points without valid
+ * departure, route points (with airway waypoints in supplied travel
+ * order), destination, then alternates. Points without valid
  * coordinates are omitted and reported in `skipped`. Route and airway points
  * far from the departure -> destination corridor are flagged, not removed.
  */
@@ -203,10 +203,7 @@ export const buildMapPoints = (plan: FlightPlanDetail): MapPointsResult => {
     addRoutePoint(segment.from)
     if (segment.context?.type === 'airway') {
       const { airway, waypoints } = segment.context
-      const ordered = [...waypoints].sort(
-        (a, b) => a.indexInAirway - b.indexInAirway,
-      )
-      for (const waypoint of ordered) {
+      for (const waypoint of waypoints) {
         addPoint(waypoint, 'airway-waypoint', airway)
       }
     }
@@ -256,11 +253,13 @@ export const buildRouteLine = (points: MapPoint[]): Coordinates[] => {
 /**
  * Builds coordinate paths for airway-context segments. Invalid-coordinate
  * points break a path rather than being bridged by a straight line. Flagged
- * outliers are retained in airway geometry for visibility, but they remain
- * excluded from the general route line and initial viewport fit.
+ * outliers are skipped, connecting the remaining fixes in airway order.
  */
 export const buildAirwayLines = (plan: FlightPlanDetail): AirwayLine[] => {
   const lines: AirwayLine[] = []
+  const outlierKeys = new Set(
+    buildMapPoints(plan).points.filter((point) => point.flagged).map(pointKey),
+  )
 
   for (const [segmentIndex, segment] of (plan.route?.segments ?? []).entries()) {
     if (segment.context?.type !== 'airway') continue
@@ -268,7 +267,8 @@ export const buildAirwayLines = (plan: FlightPlanDetail): AirwayLine[] => {
     const { airway, waypoints } = segment.context
     const nodes: Geopoint[] = [
       segment.from,
-      ...[...waypoints].sort((a, b) => a.indexInAirway - b.indexInAirway),
+      // Official airway indices may decrease when the flight travels in reverse.
+      ...waypoints,
       segment.to,
     ]
     let fragment: Coordinates[] = []
@@ -291,6 +291,7 @@ export const buildAirwayLines = (plan: FlightPlanDetail): AirwayLine[] => {
         flushFragment()
         continue
       }
+      if (outlierKeys.has(pointKey(node))) continue
 
       const coordinate = {
         latitude: node.latitude,

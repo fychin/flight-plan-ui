@@ -45,8 +45,8 @@ export const FLIGHT_ROUTE_LINE_STYLE = {
   color: '#b90078', width: 5, casingColor: '#ffffff', casingWidth: 9, arrows: true,
 } as const
 export const FLIGHT_AIRWAY_LINE_STYLE = {
-  color: '#273444', width: 1.5, dasharray: [2, 2],
+  color: '#006d68', width: 7, casingColor: '#ffffff', casingWidth: 11, arrows: true,
 } as const
 export const FLIGHT_LEG_HIGHLIGHT_STYLE = {
-  color: '#ffc247', width: 6, casingColor: '#342800', casingWidth: 10, arrows: true,
+  color: '#ffc247', width: 8, casingColor: '#342800', casingWidth: 12, arrows: true,
 } as const

@@ -2,9 +2,12 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MapLine, MapMarker } from './types'
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 
 const mocks = vi.hoisted(() => {
   const state = {
+    setWorkerUrl: vi.fn(),
+    mapConstructed: vi.fn(),
     initiallyLoaded: true,
     maps: [] as Array<{
       on: ReturnType<typeof vi.fn>
@@ -66,7 +69,7 @@ vi.mock('maplibre-gl', () => {
     layers = new Set<string>()
 
     constructor(options: unknown) {
-      void options
+      mocks.mapConstructed(options)
       mocks.maps.push(this)
     }
   }
@@ -117,6 +120,7 @@ vi.mock('maplibre-gl', () => {
   }
 
   return {
+    setWorkerUrl: mocks.setWorkerUrl,
     Map: MapMock,
     Marker: MarkerMock,
     Popup: PopupMock,
@@ -132,6 +136,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 beforeEach(() => {
+  mocks.setWorkerUrl.mockClear()
+  mocks.mapConstructed.mockClear()
   mocks.initiallyLoaded = true
   mocks.maps.length = 0
   mocks.markers.length = 0
@@ -164,6 +170,15 @@ describe('MapView', () => {
     expect(mocks.maps[0]?.addControl).toHaveBeenCalledOnce()
     expect(mocks.controls[0]?.options).toEqual({ showCompass: false })
     expect(screen.getByRole('region', { name: 'Route map' })).toBeTruthy()
+  })
+
+  it('configures the Vite-bundled worker before constructing the map', () => {
+    render(<MapView markers={[]} ariaLabel="Route map" />)
+
+    expect(mocks.setWorkerUrl).toHaveBeenCalledWith(mapWorkerUrl)
+    expect(mocks.setWorkerUrl.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.mapConstructed.mock.invocationCallOrder[0],
+    )
   })
 
   it('adds an accessible marker and creates popup content without interpreting HTML', async () => {
@@ -357,6 +372,104 @@ describe('MapView', () => {
 
     expect(map?.removeLayer).toHaveBeenCalledWith('map-line-layer-route')
     expect(map?.removeSource).toHaveBeenCalledWith('map-line-source-route')
+  })
+
+  it('labels every fix-to-fix segment with larger text without labeling unnamed lines', () => {
+    const coordinates = [{ latitude: 1, longitude: 2 }, { latitude: 3, longitude: 4 }]
+    const lines: MapLine[] = [
+      { id: 'route', coordinates },
+      { id: 'airway-main', coordinates: [...coordinates, { latitude: 5, longitude: 6 }], label: 'G579', style: { color: '#006d68', width: 7 } },
+      { id: 'airway-branch', coordinates: [coordinates[1], { latitude: 5, longitude: 6 }], label: 'G579' },
+    ]
+    render(<MapView markers={[]} lines={lines} ariaLabel="Route map" />)
+    const map = mocks.maps[0]
+
+    expect(map.addSource).toHaveBeenCalledWith('map-line-source-airway-main', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [{
+        type: 'Feature', properties: { id: 'airway-main', label: 'G579' },
+        geometry: { type: 'LineString', coordinates: [[2, 1], [4, 3], [6, 5]] },
+      }] },
+    })
+    expect(map.addSource).toHaveBeenCalledWith('map-line-source-airway-branch', expect.objectContaining({
+      data: expect.objectContaining({ features: [expect.objectContaining({
+        properties: { id: 'airway-branch', label: 'G579' },
+        geometry: { type: 'LineString', coordinates: [[4, 3], [6, 5]] },
+      })] }),
+    }))
+    expect(map.addLayer).toHaveBeenCalledWith({
+      id: 'map-line-layer-airway-main-label', type: 'symbol', source: 'map-line-source-airway-main-labels',
+      layout: {
+        'symbol-placement': 'point',
+        'text-field': ['get', 'label'], 'text-font': ['Open Sans Bold'],
+        'text-size': 18, 'text-offset': [0, -0.8],
+        'text-allow-overlap': true, 'text-ignore-placement': true,
+      },
+      paint: { 'text-color': '#006d68', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+    })
+    expect(map.addSource).toHaveBeenCalledWith('map-line-source-airway-main-labels', {
+      type: 'geojson', data: { type: 'FeatureCollection', features: [
+        { type: 'Feature', properties: { label: 'G579' }, geometry: { type: 'Point', coordinates: [3, 2] } },
+        { type: 'Feature', properties: { label: 'G579' }, geometry: { type: 'Point', coordinates: [5, 4] } },
+      ] },
+    })
+    expect(map.layers.has('map-line-layer-airway-branch-label')).toBe(true)
+    expect(map.layers.has('map-line-layer-route-label')).toBe(false)
+    expect(map.addSource).toHaveBeenCalledTimes(5)
+  })
+
+  it('updates, toggles, and removes segment labels and their source', () => {
+    const line: MapLine = { id: 'airway', label: 'G579', coordinates: [
+      { latitude: 1, longitude: 2 }, { latitude: 3, longitude: 4 },
+    ], style: { color: '#273444' } }
+    const view = render(<MapView markers={[]} lines={[line]} ariaLabel="Route map" />)
+    const map = mocks.maps[0]
+    const source = map.sources.get('map-line-source-airway')
+    const labelSource = map.sources.get('map-line-source-airway-labels')
+
+    view.rerender(<MapView markers={[]} lines={[{
+      ...line, label: 'A1', coordinates: [line.coordinates[0], { latitude: 5, longitude: 6 }], style: { color: '#006d68' },
+    }]} ariaLabel="Route map" />)
+    expect(source?.setData).toHaveBeenLastCalledWith(expect.objectContaining({
+      features: [expect.objectContaining({ properties: { id: 'airway', label: 'A1' } })],
+    }))
+    expect(labelSource?.setData).toHaveBeenLastCalledWith({
+      type: 'FeatureCollection', features: [{
+        type: 'Feature', properties: { label: 'A1' }, geometry: { type: 'Point', coordinates: [4, 3] },
+      }],
+    })
+    expect(map.setPaintProperty).toHaveBeenCalledWith('map-line-layer-airway-label', 'text-color', '#006d68')
+    expect(map.addLayer).toHaveBeenCalledTimes(2)
+
+    view.rerender(<MapView markers={[]} lines={[{ ...line, label: undefined }]} ariaLabel="Route map" />)
+    expect(map.removeLayer).toHaveBeenCalledWith('map-line-layer-airway-label')
+    expect(map.removeSource).toHaveBeenCalledWith('map-line-source-airway-labels')
+    expect(map.layers.has('map-line-layer-airway')).toBe(true)
+    expect(map.sources.has('map-line-source-airway')).toBe(true)
+
+    view.rerender(<MapView markers={[]} lines={[line]} ariaLabel="Route map" />)
+    expect(map.layers.has('map-line-layer-airway-label')).toBe(true)
+    map.removeLayer.mockClear()
+    map.removeSource.mockClear()
+    view.rerender(<MapView markers={[]} lines={[{ ...line, coordinates: [line.coordinates[0]] }]} ariaLabel="Route map" />)
+    expect(map.removeLayer.mock.calls.map(([id]) => id)).toEqual([
+      'map-line-layer-airway-label', 'map-line-layer-airway',
+    ])
+    expect(map.removeSource).toHaveBeenCalledWith('map-line-source-airway')
+    expect(map.removeSource).toHaveBeenCalledWith('map-line-source-airway-labels')
+    expect(map.removeLayer.mock.invocationCallOrder.at(-1)).toBeLessThan(map.removeSource.mock.invocationCallOrder[0])
+  })
+
+  it('skips duplicate segment labels and centers dateline-crossing labels near the dateline', () => {
+    render(<MapView markers={[]} lines={[{ id: 'dateline', label: 'A1', coordinates: [
+      { latitude: 10, longitude: 179 }, { latitude: 10, longitude: 179 },
+      { latitude: 12, longitude: -179 },
+    ] }]} ariaLabel="Route map" />)
+    expect(mocks.maps[0].addSource).toHaveBeenCalledWith('map-line-source-dateline-labels', {
+      type: 'geojson', data: { type: 'FeatureCollection', features: [{
+        type: 'Feature', properties: { label: 'A1' }, geometry: { type: 'Point', coordinates: [-180, 11] },
+      }] },
+    })
   })
 
   it('renders badge, persistent label, custom size, and minimum hit target without changing positioning', () => {

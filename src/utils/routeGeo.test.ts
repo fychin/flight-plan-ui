@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createSampleFlightPlanDetail } from '../test/flightPlanDetailFixture'
+import { createReverseAirwayFlightPlanDetail, createSampleFlightPlanDetail } from '../test/flightPlanDetailFixture'
 import type { FlightPlanDetail } from '../types/flightPlan'
 import {
   buildAirwayLines,
@@ -78,12 +78,8 @@ describe('distanceToSegmentNm', () => {
 })
 
 describe('buildMapPoints', () => {
-  it('orders points: departure, route, airway waypoints by index, destination, alternates', () => {
+  it('orders points: departure, route, airway waypoints in travel order, destination, alternates', () => {
     const plan = createSampleFlightPlanDetail()
-    const segment = plan.route?.segments[0]
-    if (segment?.context?.type === 'airway') {
-      segment.context.waypoints.reverse()
-    }
 
     const { points, skipped } = buildMapPoints(plan)
 
@@ -112,6 +108,12 @@ describe('buildMapPoints', () => {
     expect(points.find((point) => point.value === 'DOLTA')?.type).toBe('fix')
     expect(points.find((point) => point.value === 'PLB')?.type).toBe('navaid')
     expect(skipped).toEqual([])
+  })
+
+  it('preserves decreasing official airway indices when flown in reverse', () => {
+    expect(buildMapPoints(createReverseAirwayFlightPlanDetail()).points.map((point) => point.value)).toEqual([
+      'NARKA', 'RULES', 'OBARA', 'LUNAV', 'EREDI', 'REBLA',
+    ])
   })
 
   it('gives every point a unique id and tags airway waypoints with their airway', () => {
@@ -242,39 +244,67 @@ describe('buildRouteLine', () => {
 })
 
 describe('buildAirwayLines', () => {
-  it('builds an ordered airway path including segment endpoints and sorted waypoints', () => {
+  it('builds an ordered airway path including segment endpoints and supplied waypoints', () => {
     const plan = createSampleFlightPlanDetail()
-    const segment = plan.route?.segments[0]
-    if (segment?.context?.type === 'airway') {
-      segment.context.waypoints.reverse()
-    }
 
     const [airwayLine] = buildAirwayLines(plan)
     expect(airwayLine?.airway).toBe('G579')
     expect(airwayLine?.coordinates).toEqual([
       { latitude: -5.13, longitude: 105.92 },
-      { latitude: 46.96, longitude: 6.31 },
       { latitude: -2.88, longitude: 104.65 },
       { latitude: -0.57, longitude: 104.22 },
-      { latitude: 17.83, longitude: -89.45 },
       { latitude: 0.27, longitude: 104.05 },
     ])
   })
 
-  it('retains flagged airway outliers in the distinct airway geometry', () => {
+  it('connects NARKA to REBLA on Z650 without reversing its intermediate fixes', () => {
+    const plan = createReverseAirwayFlightPlanDetail()
+    const before = structuredClone(plan)
+    expect(buildAirwayLines(plan)[0]?.coordinates).toEqual([
+      { latitude: 47.25, longitude: 21.86 },
+      { latitude: 47.2, longitude: 22.07 },
+      { latitude: 47.03, longitude: 22.72 },
+      { latitude: 46.92, longitude: 23.15 },
+      { latitude: 46.86, longitude: 23.36 },
+      { latitude: 46.76, longitude: 23.74 },
+    ])
+    expect(plan).toEqual(before)
+  })
+
+  it('skips flagged airway outliers while retaining their markers', () => {
     const { points } = buildMapPoints(createSampleFlightPlanDetail())
     const flaggedValues = points.filter((point) => point.flagged).map((point) => point.value)
     const [airwayLine] = buildAirwayLines(createSampleFlightPlanDetail())
 
     expect(flaggedValues).toEqual(['DOMIL', 'FIR11'])
-    expect(airwayLine?.coordinates).toContainEqual({
+    expect(airwayLine?.coordinates).not.toContainEqual({
       latitude: 46.96,
       longitude: 6.31,
     })
-    expect(airwayLine?.coordinates).toContainEqual({
+    expect(airwayLine?.coordinates).not.toContainEqual({
       latitude: 17.83,
       longitude: -89.45,
     })
+  })
+
+  it('also excludes flagged segment endpoints from airway connections', () => {
+    const plan = createSampleFlightPlanDetail()
+    const segment = plan.route?.segments[0]
+    if (!segment) throw new Error('Expected route segment')
+    segment.from = { value: 'FAR', type: 'fix', latitude: 50, longitude: 0 }
+
+    expect(buildAirwayLines(plan)[0]?.coordinates).toEqual([
+      { latitude: -2.88, longitude: 104.65 },
+      { latitude: -0.57, longitude: 104.22 },
+      { latitude: 0.27, longitude: 104.05 },
+    ])
+  })
+
+  it.each(['departure', 'destination'] as const)('does not exclude fixes when %s is missing', (endpoint) => {
+    const plan = createSampleFlightPlanDetail()
+    delete plan[endpoint]
+
+    expect(buildAirwayLines(plan)[0]?.coordinates).toHaveLength(6)
   })
 
   it('returns no airway paths for a direct-only route', () => {
@@ -298,12 +328,7 @@ describe('buildAirwayLines', () => {
     const lines = buildAirwayLines(plan)
     expect(lines.map((line) => line.coordinates)).toEqual([
       [
-        { latitude: -5.13, longitude: 105.92 },
-        { latitude: 46.96, longitude: 6.31 },
-      ],
-      [
         { latitude: -0.57, longitude: 104.22 },
-        { latitude: 17.83, longitude: -89.45 },
         { latitude: 0.27, longitude: 104.05 },
       ],
     ])

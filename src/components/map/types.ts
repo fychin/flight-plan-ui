@@ -17,6 +17,8 @@ export type MapMarker = {
 export type MapLine = {
   id: string
   coordinates: { latitude: number; longitude: number }[]
+  /** Optional name displayed along the line, for example an airway identifier. */
+  label?: string
   /** Optional per-line styling. */
   style?: {
     color: string

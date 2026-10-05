@@ -41,3 +41,25 @@ export const createSampleFlightPlanDetail = (): FlightPlanDetail => ({
     ],
   },
 })
+
+/** Z650 is flown opposite to its official index order in this API response. */
+export const createReverseAirwayFlightPlanDetail = (): FlightPlanDetail => {
+  const from = { value: 'NARKA', type: 'fix' as const, latitude: 47.25, longitude: 21.86 }
+  const to = { value: 'REBLA', type: 'fix' as const, latitude: 46.76, longitude: 23.74 }
+  return {
+    departure: { ...from },
+    destination: { ...to },
+    route: { segments: [{
+      from,
+      to,
+      context: {
+        type: 'airway', airway: 'Z650', waypoints: [
+          { value: 'RULES', type: 'fix', latitude: 47.2, longitude: 22.07, indexInAirway: 12 },
+          { value: 'OBARA', type: 'fix', latitude: 47.03, longitude: 22.72, indexInAirway: 11 },
+          { value: 'LUNAV', type: 'fix', latitude: 46.92, longitude: 23.15, indexInAirway: 10 },
+          { value: 'EREDI', type: 'fix', latitude: 46.86, longitude: 23.36, indexInAirway: 9 },
+        ],
+      },
+    }] },
+  }
+}

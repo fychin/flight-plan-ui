@@ -12,7 +12,11 @@ describe('FlightMapLegend', () => {
     expect(screen.getByRole('region', { name: 'Legend' })).toBeTruthy()
     expect(screen.getByText('Departure')).toBeTruthy()
     expect(screen.getByText('Destination')).toBeTruthy()
-    expect(screen.getByText('Airway overlay: G579')).toBeTruthy()
+    expect(screen.getByText('Filed route (direct)')).toBeTruthy()
+    const airwayEntry = screen.getByText('Airway route: G579').closest('li')
+    const airwaySwatch = airwayEntry?.querySelector<HTMLElement>('.flight-map-legend__swatch')
+    expect(airwaySwatch?.style.getPropertyValue('--swatch-width')).toBe('7px')
+    expect(airwaySwatch?.classList.contains('flight-map-legend__swatch--dashed')).toBe(false)
     expect(screen.queryByText('Destination alternate')).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
     view.rerender(<FlightMapLegend plan={plan} showAlternates hasFocusedLeg />)
@@ -22,6 +26,15 @@ describe('FlightMapLegend', () => {
     expect(screen.getByRole('group', { name: 'Map legend details' }).tabIndex).toBe(0)
     view.rerender(<FlightMapLegend plan={plan} showAlternates={false} hasFocusedLeg={false} />)
     expect(screen.queryByText('Selected leg')).toBeNull()
+  })
+  it('only shows the airway route when no direct legs are drawn', () => {
+    const plan = createSampleFlightPlanDetail()
+    plan.departure = { ...plan.route!.segments[0].from }
+    plan.destination = { ...plan.route!.segments[0].to }
+    render(<FlightMapLegend plan={plan} showAlternates={false} hasFocusedLeg={false} />)
+
+    expect(screen.getByText('Airway route: G579')).toBeTruthy()
+    expect(screen.queryByText('Filed route (direct)')).toBeNull()
   })
   it('shows the empty state', () => {
     render(<FlightMapLegend plan={{}} showAlternates={false} hasFocusedLeg={false} />)

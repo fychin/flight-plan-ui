@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createSampleFlightPlanDetail } from '../test/flightPlanDetailFixture'
-import { buildMapPoints, lineDistanceNm } from './routeGeo'
+import { createReverseAirwayFlightPlanDetail, createSampleFlightPlanDetail } from '../test/flightPlanDetailFixture'
+import { buildAirwayLines, buildMapPoints, lineDistanceNm } from './routeGeo'
 import { buildRouteLegs } from './routeLegs'
 
 describe('buildRouteLegs', () => {
@@ -29,18 +29,18 @@ describe('buildRouteLegs', () => {
     }
     expect(leg.outlierCount).toBe(points.filter((point) => point.flagged).length)
   })
-  it('sorts airway nodes by index without mutating input and carries speed/level', () => {
-    const plan = createSampleFlightPlanDetail()
+  it('preserves reverse airway travel order without mutating input and carries speed/level', () => {
+    const plan = createReverseAirwayFlightPlanDetail()
     const segment = plan.route!.segments[0]
     segment.from.speed = 'N0488'
     segment.from.flightLevel = 'F360'
     if (segment.context?.type !== 'airway') throw new Error('Expected airway')
-    segment.context.waypoints.reverse()
     const before = [...segment.context.waypoints]
-    const leg = buildRouteLegs(plan)[1]
+    const leg = buildRouteLegs(plan)[0]
     expect(leg.speed).toBe('N0488')
     expect(leg.flightLevel).toBe('F360')
-    expect(leg.coordinates[1]).toEqual({ latitude: -2.88, longitude: 104.65 })
+    expect(leg.coordinates[1]).toEqual({ latitude: 47.2, longitude: 22.07 })
+    expect(leg.coordinates).toEqual(buildAirwayLines(plan)[0]?.coordinates)
     expect(segment.context.waypoints).toEqual(before)
   })
   it.each([undefined, { type: 'direct' as const }])('uses DCT without airway context', (context) => {
