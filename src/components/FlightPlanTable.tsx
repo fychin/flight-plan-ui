@@ -1,9 +1,9 @@
-import type { FlightPlan } from '../types/flightPlan'
+import type { FlightPlanListItem } from '../types/flightPlan'
 import './FlightPlanTable.css'
 
 type FlightPlanTableProps = {
-  flightPlans: FlightPlan[]
-  onRowClick?: (plan: FlightPlan) => void
+  flightPlans: FlightPlanListItem[]
+  onRowClick?: (plan: FlightPlanListItem) => void
   loading?: boolean
   skeletonRows?: number
 }

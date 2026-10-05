@@ -1,0 +1,10 @@
+.flight-map-legend__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.flight-map-legend__list li { display: flex; align-items: center; gap: 10px; color: var(--ui-charcoal); font-size: 13px; }
+.flight-map-legend__swatch { flex: 0 0 14px; width: 14px; height: 14px; border: 2px solid white; outline: 1px solid var(--ui-black); background: var(--swatch-color); }
+.flight-map-legend__swatch--circle { border-radius: 50%; }
+.flight-map-legend__swatch--pill { border-radius: 4px; }
+.flight-map-legend__swatch--square { border-radius: 2px; }
+.flight-map-legend__swatch--diamond { width: 12px; height: 12px; margin: 2px; transform: rotate(45deg); }
+.flight-map-legend__swatch--triangle { border: 0; outline: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.flight-map-legend__swatch--line { flex-basis: 20px; width: 20px; height: 0; border: 0; outline: 0; border-top: 4px solid var(--swatch-color); background: transparent; }
+.flight-map-legend__swatch--dashed { border-top-style: dashed; }
