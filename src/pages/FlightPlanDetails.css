@@ -43,11 +43,34 @@
   background: var(--ui-off-white);
   color: var(--ui-dark-grey);
 }
+.details-map-placeholder--loading {
+  background: linear-gradient(135deg, var(--ui-off-white), var(--ui-blue-light));
+}
+.details-skeleton {
+  display: block;
+  flex: none;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--ui-light-grey);
+  animation: details-skeleton-pulse 1.8s ease-in-out infinite;
+}
+.details-skeleton--title { width: 140px; height: 36px; }
+.details-skeleton--airport { width: 80px; height: 42px; }
+.details-skeleton--metadata { width: 90px; height: 32px; }
+.details-skeleton--card-title { width: 60%; height: 18px; margin-bottom: 12px; }
+.details-skeleton--line { width: 90%; margin-top: 10px; }
+.details-skeleton--short { width: 65%; }
+@keyframes details-skeleton-pulse {
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .details-skeleton { animation: none; }
+}
 @media (max-width: 1024px) {
   .details-page { display: flex; flex-direction: column; height: auto; padding: 12px; }
   .details-summary-bar { gap: 12px; }
   .details-summary-values { gap: 12px 16px; }
   .details-summary-values.details-summary-metadata { margin-left: 0; justify-content: flex-start; }
   .details-page h1 { font-size: 28px; }
-  .details-map-placeholder { height: 60svh; min-height: 360px; }
+  .details-map-placeholder { height: 60svh; min-height: 360px; flex: none; }
 }

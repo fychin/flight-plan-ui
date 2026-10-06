@@ -12,10 +12,40 @@ const FlightRouteMap = lazy(() =>
   import('../components/FlightRouteMap').then(({ FlightRouteMap }) => ({ default: FlightRouteMap })),
 )
 
-function FlightPlanDetails() {
-  const { id } = useParams<{ id: string }>()
+function FlightPlanDetailsLoading() {
+  return (
+    <main className="details-page">
+      <p className="visually-hidden" role="status">Loading flight plan…</p>
+      <div className="details-summary-bar" aria-hidden="true">
+        <span className="details-skeleton details-skeleton--title" />
+        <div className="details-summary-values">
+          <span className="details-skeleton details-skeleton--airport" />
+          <span className="details-skeleton details-skeleton--airport" />
+        </div>
+        <div className="details-summary-values details-summary-metadata">
+          <span className="details-skeleton details-skeleton--metadata" />
+          <span className="details-skeleton details-skeleton--metadata" />
+          <span className="details-skeleton details-skeleton--metadata" />
+        </div>
+      </div>
+      <div className="details-map-placeholder details-map-placeholder--loading" aria-hidden="true" />
+      <div className="route-summary" aria-hidden="true">
+        {['Routes', 'Alternates and airways', 'Timing and stats', 'Legend'].map((card) => (
+          <div className="route-summary__card details-skeleton-card" key={card}>
+            <span className="details-skeleton details-skeleton--card-title" />
+            <span className="details-skeleton details-skeleton--line" />
+            <span className="details-skeleton details-skeleton--line details-skeleton--short" />
+            <span className="details-skeleton details-skeleton--line" />
+          </div>
+        ))}
+      </div>
+    </main>
+  )
+}
+
+function FlightPlanDetailsContent({ id }: { id: string | undefined }) {
   const [plan, setPlan] = useState<FlightPlanDetail | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(Boolean(id))
   const [error, setError] = useState<string | null>(null)
 
   const [selectedLegId, setSelectedLegId] = useState<string | null>(null)
@@ -83,13 +113,7 @@ function FlightPlanDetails() {
     }
   }, [id])
 
-  if (loading) {
-    return (
-      <main className="details-page">
-        <p className="status">Loading flight plan…</p>
-      </main>
-    )
-  }
+  if (loading) return <FlightPlanDetailsLoading />
 
   if (error) {
     return (
@@ -146,6 +170,11 @@ function FlightPlanDetails() {
         selectedAlternateId={selectedAlternateId} onSelectAlternate={selectAlternate} />
     </main>
   )
+}
+
+function FlightPlanDetails() {
+  const { id } = useParams<{ id: string }>()
+  return <FlightPlanDetailsContent key={id} id={id} />
 }
 
 export default FlightPlanDetails
