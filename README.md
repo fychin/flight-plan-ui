@@ -45,3 +45,15 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## Deploy to GKE
+
+The `Deploy to GKE` GitHub Actions workflow builds and pushes the UI image to Artifact Registry, then deploys it to the `default` namespace in the GKE cluster. It runs on pushes to `main` or can be started manually for the `dev` environment. The UI is exposed through a GKE LoadBalancer service.
+
+Configure a GitHub environment named `dev` with these variables:
+
+- `PROJECT_ID`, `GAR_LOCATION`, and `GAR_REPOSITORY` for Artifact Registry
+- `WIF_SERVICE_ACCOUNT` and `CLUSTER_NAME` for Google Cloud deployment
+- `API_BASE_URL` with the public base URL of the flight-plan API; the build passes it to Vite as `VITE_API_BASE_URL`
+
+Add `WIF_PROVIDER` as an environment secret. The map uses the built-in OpenStreetMap style unless a custom style is configured at build time. `API_BASE_URL` is embedded in the frontend image; it is public client-side configuration, not a runtime secret.
