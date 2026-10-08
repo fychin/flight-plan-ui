@@ -11,6 +11,7 @@ RUN npm ci
 
 # Copy application source and build static output to /dist
 COPY . .
+ARG VITE_API_BASE_URL
 RUN npm run build
 
 # Stage 2: Serve static files using a pinned, stable Nginx version
