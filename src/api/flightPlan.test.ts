@@ -1,9 +1,55 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchFlightPlanById } from './flightPlan'
-import type { FlightPlanDetail } from '../types/flightPlan'
+import { fetchFlightPlanById, fetchFlightPlans } from './flightPlan'
+import type { FlightPlanDetail, FlightPlanResponse } from '../types/flightPlan'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('fetchFlightPlans', () => {
+  const response: FlightPlanResponse = {
+    data: [],
+    pagination: {
+      totalItems: 0,
+      pageSize: 10,
+      page: 1,
+      totalPages: 0,
+      cursors: { first: null, prev: null, next: null, last: null },
+    },
+  }
+
+  it('sends pageSize without a cursor on the first page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(response),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchFlightPlans(null, 10)
+
+    const params = new URL(
+      String(fetchMock.mock.calls[0][0]),
+      'http://localhost',
+    ).searchParams
+    expect([...params.entries()]).toEqual([['pageSize', '10']])
+  })
+
+  it('sends a cursor without pageSize on subsequent pages', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(response),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const cursor = 'eyJwYWdlIjoyLCJwYWdlU2l6ZSI6MTB9'
+
+    await fetchFlightPlans(cursor, 10)
+
+    const params = new URL(
+      String(fetchMock.mock.calls[0][0]),
+      'http://localhost',
+    ).searchParams
+    expect([...params.entries()]).toEqual([['cursor', cursor]])
+  })
 })
 
 describe('fetchFlightPlanById', () => {
