@@ -28,9 +28,11 @@ export const fetchFlightPlans = (
   cursor: string | null,
   pageSize: number,
 ): Promise<FlightPlanResponse> => {
-  const searchParams = new URLSearchParams({ pageSize: String(pageSize) })
+  const searchParams = new URLSearchParams()
   if (cursor) {
     searchParams.set('cursor', cursor)
+  } else {
+    searchParams.set('pageSize', String(pageSize))
   }
 
   return fetch(`${API_BASE_URL}/api/flight-plan?${searchParams}`).then((res) => {
